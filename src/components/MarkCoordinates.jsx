@@ -2,27 +2,58 @@ import React, { useEffect, useRef, useState } from 'react';
 
 const ImageMarkerOverlay = () => {
   const imageRef = useRef(null);
+  const containerRef = useRef(null);
   const [markers, setMarkers] = useState([]);
 
-  useEffect(() => {
+  const updateMarkerPositions = () => {
+    const img = imageRef.current;
+    if (!img) return;
+
+    const width = img.offsetWidth;
+    const height = img.offsetHeight;
+
     try {
       const stored = localStorage.getItem('imageClickCoordinates');
-      const parsed = stored ? JSON.parse(stored) : [];
-      if (Array.isArray(parsed)) {
-        setMarkers(parsed);
-      }
+      const coords = stored ? JSON.parse(stored) : [];
+      if (!Array.isArray(coords)) return;
+
+      // Convert percentages to pixels based on actual image size
+      const scaledMarkers = coords.map(point => ({
+        x: (point.x / 100) * width,
+        y: (point.y / 100) * height,
+      }));
+
+      setMarkers(scaledMarkers);
     } catch (err) {
-      console.error('Error parsing coordinates:', err);
+      console.error('Failed to load markers:', err);
     }
+  };
+
+  useEffect(() => {
+    const img = imageRef.current;
+    if (img && img.complete) {
+      updateMarkerPositions();
+    }
+
+    window.addEventListener('resize', updateMarkerPositions);
+    return () => window.removeEventListener('resize', updateMarkerPositions);
   }, []);
 
   return (
-    <div style={{textAlign: 'center', marginTop: '2rem', position: 'relative'  }}>
+    <div
+      ref={containerRef}
+      style={{
+        position: 'relative',
+        width: 'fit-content',
+        margin: '2rem auto',
+      }}
+    >
       <img
         ref={imageRef}
-        src='khokho.jpg'
+        src="khokho.jpg"
         alt="Marked"
-        style={{ width: '50%', display: 'block', maxWidth: '100%' }}
+        onLoad={updateMarkerPositions}
+        style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
       />
 
       {markers.map((point, index) => (
@@ -30,14 +61,14 @@ const ImageMarkerOverlay = () => {
           key={index}
           style={{
             position: 'absolute',
-            top: point.y,
-            left: point.x,
-            width: '10px',
-            height: '10px',
+            top: `${point.y}px`,
+            left: `${point.x}px`,
+            width: '14px',
+            height: '14px',
             backgroundColor: 'red',
             borderRadius: '50%',
-            // transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none', // allow clicks to pass through
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
           }}
         />
       ))}
